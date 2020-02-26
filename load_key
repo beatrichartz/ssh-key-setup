@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+if [[ -x "$(command -v kr)" ]]; then
+  kr unpair > /dev/null
+  echo "✅ Krypton detected and unpaired"
+fi
+
+UNLOAD_AT="$1"
+DIR="$(dirname "$0")"
+KEY="$DIR/id_rsa"
+
+if [ -z $UNLOAD_AT ]; then
+  UNLOAD_AT="17:40"
+fi
+
+NOW_TIMESTAMP="$(date +%s)"
+UNLOAD_AT_TIMESTAMP="$(date -jf '%H:%M:%S' "$UNLOAD_AT:00" +%s)"
+UNLOAD_IN="$((UNLOAD_AT_TIMESTAMP-NOW_TIMESTAMP))"
+
+if [[ $UNLOAD_IN -lt 0 ]]; then
+  echo "😱 It is past $UNLOAD_AT and you should not be working, giving you 10 minutes"
+  echo "🤫 (If you know what you're doing add the time to unload the key as the first argument)"
+  UNLOAD_IN="$((10*60))"
+fi
+
+/usr/bin/ssh-add -D >> /dev/null 2>&1
+echo "🧹 Existing loaded ssh keys have been removed from this machine's agent"
+
+/usr/bin/ssh-add -t "$UNLOAD_IN" "$KEY" >> /dev/null 2>&1
+echo "🔑 Your ssh key has been added to this machine's agent"
+echo "🕔 The key will be automatically unloaded at $UNLOAD_AT"
+
+echo "⏏️  The volume will be ejected now..."
+/usr/sbin/diskutil umount force "$DIR" >> /dev/null 2>&1
