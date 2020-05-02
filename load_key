@@ -41,6 +41,7 @@ fi
 /usr/bin/ssh-add -t "$UNLOAD_IN" "$KEY" >> /dev/null 2>&1
 echo "🔑 Your ssh key has been added to this machine's agent"
 echo "🕔 The key will be automatically unloaded at $UNLOAD_AT"
+echo $UNLOAD_AT_TIMESTAMP > /tmp/load_ssh_key_unload_at_timestamp
 
 echo "⏏️  The volume will be ejected now..."
 /usr/sbin/diskutil umount force "$DIR" >> /dev/null 2>&1
