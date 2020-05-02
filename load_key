@@ -7,12 +7,12 @@ if [[ -x "$(command -v kr)" ]]; then
   echo "✅ Krypton detected and unpaired"
 fi
 
-UNLOAD_AT="$1"
+UNLOAD_AT="${1:-"17:40"}"
 DIR="$(dirname "$0")"
 KEY="$DIR/id_rsa"
-
-if [ -z $UNLOAD_AT ]; then
-  UNLOAD_AT="17:40"
+if [[ ! -f "$KEY" ]]; then
+  echo "👻 No private key is present at $KEY. Please add a key. Exiting while leaving the volume mounted..."
+  exit 1
 fi
 
 NOW_TIMESTAMP="$(date +%s)"
@@ -20,13 +20,23 @@ UNLOAD_AT_TIMESTAMP="$(date -jf '%H:%M:%S' "$UNLOAD_AT:00" +%s)"
 UNLOAD_IN="$((UNLOAD_AT_TIMESTAMP-NOW_TIMESTAMP))"
 
 if [[ $UNLOAD_IN -lt 0 ]]; then
-  echo "😱 It is past $UNLOAD_AT and you should not be working, giving you 10 minutes"
-  echo "🤫 (If you know what you're doing add the time to unload the key as the first argument)"
   UNLOAD_IN="$((10*60))"
+  UNLOAD_AT_TIMESTAMP="$(expr "$(date +"%s")" + $UNLOAD_IN)"
+  echo "😱 It is past $UNLOAD_AT - should you be working? Loading the key for 10 minutes."
+
+  UNLOAD_AT="$(date -r $UNLOAD_AT_TIMESTAMP +"%H:%M")"
+  echo "🤫 (If you know what you're doing add the time to unload the key, e.g: $0 $UNLOAD_AT)"
 fi
 
-/usr/bin/ssh-add -D >> /dev/null 2>&1
-echo "🧹 Existing loaded ssh keys have been removed from this machine's agent"
+set +e
+/usr/bin/ssh-add -L >> /dev/null 2>&1
+HAS_IDENTITIES=$?
+set -e
+
+if [[ "$HAS_IDENTITIES" == 0 ]]; then
+  /usr/bin/ssh-add -D >> /dev/null 2>&1
+  echo "🧹 Existing loaded ssh keys have been removed from this machine's agent"
+fi
 
 /usr/bin/ssh-add -t "$UNLOAD_IN" "$KEY" >> /dev/null 2>&1
 echo "🔑 Your ssh key has been added to this machine's agent"
